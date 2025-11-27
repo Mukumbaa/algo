@@ -215,7 +215,7 @@ func (m model) View() string {
 	return b.String()
 }
 func main() {
-	p := tea.NewProgram(initialModel())
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	
 	// Esegui il programma e cattura il modello finale
 	finalModel, err := p.Run()
