@@ -21,6 +21,7 @@ type model struct {
 	apps         []AppEntry
 	filteredApps []AppEntry
 	cursor       int
+	offset       int
 	selectedApp  *AppEntry // Campo per memorizzare la scelta
 }
 
@@ -39,14 +40,13 @@ func initialModel() model {
 	    apps = loadFromFile(args[0])
 	} else {
 	    apps = loadApplications()
-	}	// for i:=range apps{
-	// 	fmt.Printf("%s (%s) [%s]\n", apps[i].Name, apps[i].File, apps[i].Exec);
-	// }
+	}
 	return model{
 		textInput:    ti,
 		apps:         apps,
 		filteredApps: apps,
 		cursor:       0,
+		offset:       0,
 		selectedApp:  nil,
 	}
 }
@@ -57,6 +57,8 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	oldValue := m.textInput.Value()
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -73,26 +75,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-		case "up":
+		case "up", "shift+tab":
 			if m.cursor > 0 {
 				m.cursor--
+				if m.cursor < m.offset {
+					m.offset--
+				}
 			}
 
 		case "down", "tab":
 			if m.cursor < len(m.filteredApps)-1 {
 				m.cursor++
+				if m.cursor >= m.offset+10{
+					m.offset++
+				}
 			}
-
-		case "shift+tab":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		}
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)
 
-	rawInput := m.textInput.Value() // Non usare TrimSpace subito per rilevare ":"
+	rawInput := m.textInput.Value() 
+	if oldValue != rawInput {
+		m.cursor = 0
+		m.offset = 0
+	}
+
+	
 	query := strings.TrimSpace(rawInput)
 
 	// Logica: Se inizia con ":", modalità ricerca web
@@ -131,6 +139,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 		// Mostra solo questa opzione
 		m.filteredApps = []AppEntry{webSearchEntry}
+		m.offset = 0
 	} else {
 		// Logica originale per le app locali
 		if query == "" {
@@ -140,13 +149,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Reset del cursore se la lista cambia drasticamente
-	if m.cursor >= len(m.filteredApps) {
-		m.cursor = 0
+		// Reset del cursore se la lista cambia drasticamente
+		if m.cursor >= len(m.filteredApps) {
+			m.cursor = 0
+			m.offset = 0
+		}
 	}
-
 	return m, cmd
 }
+
+// func (m model) View() string {
+// 	var b strings.Builder
+// 	b.WriteString(m.textInput.View())
+// 	b.WriteString("\n\n")
+
+// 	if len(m.filteredApps) == 0 {
+// 		b.WriteString("0 results\n")
+// 	} else {
+// 		maxDisplay := min(len(m.filteredApps), 10)
+
+// 		for i := range maxDisplay {
+// 			cursor := " "
+// 			if m.cursor == i {
+// 				cursor = ">"
+// 			}
+// 			b.WriteString(fmt.Sprintf("%s %s\n", cursor, m.filteredApps[i].Name))
+// 		}
+		
+// 		if len(m.filteredApps) > maxDisplay {
+// 			b.WriteString(fmt.Sprintf("\n ... and other %d apps\n", len(m.filteredApps)-maxDisplay))
+// 		}
+// 	}
+// 	return b.String()
+// }
 
 func (m model) View() string {
 	var b strings.Builder
@@ -156,9 +191,14 @@ func (m model) View() string {
 	if len(m.filteredApps) == 0 {
 		b.WriteString("0 results\n")
 	} else {
-		maxDisplay := min(len(m.filteredApps), 10)
+        // Calcola l'indice finale basato sull'offset
+		endIndex := m.offset + 10
+		if endIndex > len(m.filteredApps) {
+			endIndex = len(m.filteredApps)
+		}
 
-		for i := range maxDisplay {
+        // Cicla da offset fino a endIndex
+		for i := m.offset; i < endIndex; i++ {
 			cursor := " "
 			if m.cursor == i {
 				cursor = ">"
@@ -166,13 +206,14 @@ func (m model) View() string {
 			b.WriteString(fmt.Sprintf("%s %s\n", cursor, m.filteredApps[i].Name))
 		}
 		
-		if len(m.filteredApps) > maxDisplay {
-			b.WriteString(fmt.Sprintf("\n ... and other %d apps\n", len(m.filteredApps)-maxDisplay))
+        // Calcola quante app rimangono fuori vista (sotto)
+        remaining := len(m.filteredApps) - endIndex
+		if remaining > 0 {
+			b.WriteString(fmt.Sprintf("\n ... and other %d apps\n", remaining))
 		}
 	}
 	return b.String()
 }
-
 func main() {
 	p := tea.NewProgram(initialModel())
 	
@@ -191,38 +232,6 @@ func main() {
 	}
 }
 
-// func launchApp(execCmd string) {
-// 	// sh -c permette di eseguire comandi con argomenti complessi
-	
-// 	cmd := exec.Command("sh", "-c", execCmd)
-	
-// 	// IMPORTANTE: Sgancia il processo dal terminale corrente
-// 	cmd.SysProcAttr = &syscall.SysProcAttr{
-// 		Setsid: true, // Crea una nuova sessione per il figlio
-// 	}
-
-// 	// Rilascia stdin/stdout/stderr per evitare che l'app si blocchi
-// 	// aspettando input dal terminale chiuso o scrivendo su un pipe rotto.
-// 	cmd.Stdin = nil
-// 	cmd.Stdout = nil
-// 	cmd.Stderr = nil
-
-// 	err := cmd.Start()
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "Errore avvio: %v\n", err)
-// 		return
-// 	}
-
-// 	// Usiamo Release invece di Wait, così il codice Go può terminare
-// 	// senza aspettare che l'app lanciata si chiuda.
-// 	// Il processo figlio è ora orfano e adottato da init/systemd.
-// 	if err := cmd.Process.Release(); err != nil {
-// 		fmt.Printf("Errore release: %v\n", err)
-// 	}
-	
-// 	fmt.Printf("Lanciato: %s\n", execCmd)
-// }
-// Aggiorna la firma per accettare *AppEntry
 func launchApp(app *AppEntry) {
 	cmdStr := app.Exec
 
