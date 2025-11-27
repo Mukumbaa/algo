@@ -12,6 +12,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+
+var TERMINAL string = "alacritty"
+var BROWSER string = "firefox"
+
 type model struct {
 	textInput    textinput.Model
 	apps         []AppEntry
@@ -113,7 +117,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 3. Crea il comando. 
 			// Puoi usare "xdg-open" per il browser predefinito o "google-chrome-stable" per forzare Chrome.
 			// Usiamo apici singoli attorno all'URL per sicurezza nella shell.
-			execCmd = fmt.Sprintf("google-chrome-stable '%s'", googleUrl)
+			execCmd = fmt.Sprintf("%s '%s'", BROWSER,googleUrl)
 			
 			// 4. Crea una AppEntry "virtuale"
 		}
@@ -225,9 +229,8 @@ func launchApp(app *AppEntry) {
     // Qui dovresti rilevare il terminale dell'utente, hardcodiamo "kitty" per esempio,
     // oppure puoi usare "x-terminal-emulator" -e.
 	if app.Terminal {
-		terminalEmulator := "alacritty" // Sostituisci con il tuo terminale preferito
         // Nota: la sintassi flag dipende dal terminale (-e per kitty/alacritty/xterm, -- per gnome-terminal)
-		cmdStr = fmt.Sprintf("%s -e %s",  terminalEmulator,cmdStr)
+		cmdStr = fmt.Sprintf("%s -e %s",  TERMINAL,cmdStr)
 	}
 
 	cmd := exec.Command("sh", "-c", cmdStr)
