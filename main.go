@@ -2,29 +2,23 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
-	"syscall" 
-	"net/url" 
+	"syscall"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
-	
+	// "github.com/charmbracelet/lipgloss"
 )
 
-var (
-	// Stile per il contenitore principale (box)
-	boxStyle = lipgloss.NewStyle().
-		// BorderStyle(lipgloss.RoundedBorder()). // Bordo arrotondato
-		// BorderForeground(lipgloss.Color("63")). // Colore viola (ANSI 63)
-		Padding(1, 2).                          // Padding interno (top/bottom, left/right)
-		Margin(1, 0)
-)
 
 var TERMINAL string = "alacritty"
 var BROWSER string = "firefox"
+var THEME string = "default"
+var theme Theme
 
 type model struct {
 	textInput    textinput.Model
@@ -32,17 +26,27 @@ type model struct {
 	filteredApps []AppEntry
 	cursor       int
 	offset       int
-	selectedApp  *AppEntry // Campo per memorizzare la scelta
+	selectedApp  *AppEntry
+	
+    width  int
+    height int
 }
 
 func initialModel() model {
 	loadConfig()
+	
+	theme = loadTheme("rose-pine")
+	
 	ti := textinput.New()
 	ti.Placeholder = "Search..."
 	ti.Focus()
 	ti.CharLimit = 156
 	ti.Width = 50
 
+	ti.TextStyle = theme.inputStyle.textColor
+	ti.PlaceholderStyle = theme.inputStyle.placeholderColor
+	ti.PromptStyle = theme.inputStyle.promptColor
+	
 	args := os.Args[1:]
 
 	var apps []AppEntry
@@ -51,6 +55,10 @@ func initialModel() model {
 	} else {
 	    apps = loadApplications()
 	}
+
+
+	time.Sleep(10*time.Millisecond)
+
 	return model{
 		textInput:    ti,
 		apps:         apps,
@@ -78,10 +86,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if len(m.filteredApps) > 0 && m.cursor < len(m.filteredApps) {
-				// 1. Salva la selezione nel modello
 				selected := m.filteredApps[m.cursor]
 				m.selectedApp = &selected
-				// 2. Esci e basta. Il lancio avverrà nel main.
 				return m, tea.Quit
 			}
 
@@ -100,7 +106,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.offset++
 				}
 			}
-	}
+		}
 
 	m.textInput, cmd = m.textInput.Update(msg)
 
@@ -112,8 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	
 	query := strings.TrimSpace(rawInput)
-
-	// Logica: Se inizia con ":", modalità ricerca web
+	
 	if strings.HasPrefix(rawInput, "?") {
 		searchText := strings.TrimSpace(strings.TrimPrefix(rawInput, "?"))
 		
@@ -122,23 +127,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 		if searchText == "" {
 			displayName = "Google search:"
-			// Se preme invio ora, apriamo solo il browser vuoto (opzionale)
-			execCmd = "google-chrome-stable"			// Se c'è solo ":", svuota la lista o mostra un suggerimento
+			execCmd = "google-chrome-stable"
 			m.filteredApps = []AppEntry{} 
 		} else {
-			// 1. Codifica la query per l'URL (es. spazi diventano + o %20)
 			encodedQuery := url.QueryEscape(searchText)
 			
-			// 2. Costruisci l'URL di Google
 			googleUrl := fmt.Sprintf("https://www.google.com/search?q=%s", encodedQuery)
 			displayName = fmt.Sprintf("Google search: %s", searchText)
 			
-			// 3. Crea il comando. 
-			// Puoi usare "xdg-open" per il browser predefinito o "google-chrome-stable" per forzare Chrome.
-			// Usiamo apici singoli attorno all'URL per sicurezza nella shell.
 			execCmd = fmt.Sprintf("%s '%s'", BROWSER,googleUrl)
 			
-			// 4. Crea una AppEntry "virtuale"
 		}
 		webSearchEntry := AppEntry{
 			Name:     displayName,
@@ -147,11 +145,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			File:     "", // Non esiste un file .desktop reale
 		}
 		
-		// Mostra solo questa opzione
 		m.filteredApps = []AppEntry{webSearchEntry}
 		m.offset = 0
 	} else {
-		// Logica originale per le app locali
 		if query == "" {
 			m.filteredApps = m.apps
 		} else {
@@ -159,11 +155,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-		// Reset del cursore se la lista cambia drasticamente
 		if m.cursor >= len(m.filteredApps) {
 			m.cursor = 0
 			m.offset = 0
 		}
+		
+	case tea.WindowSizeMsg:
+	    m.width = msg.Width
+	    m.height = msg.Height
+	    return m, nil
+
 	}
 	return m, cmd
 }
@@ -175,42 +176,53 @@ func (m model) View() string {
 	b.WriteString("\n\n")
 
 	if len(m.filteredApps) == 0 {
-		b.WriteString("0 results\n")
-	} else {
-        // Calcola l'indice finale basato sull'offset
-		endIndex := min(m.offset + 10, len(m.filteredApps))
-
-        // Cicla da offset fino a endIndex
-		for i := m.offset; i < endIndex; i++ {
-			cursor := " "
-			if m.cursor == i {
-				cursor = ">"
-			}
-			b.WriteString(fmt.Sprintf("%s %s\n", cursor, m.filteredApps[i].Name))
-		}
 		
-        // Calcola quante app rimangono fuori vista (sotto)
-        remaining := len(m.filteredApps) - endIndex
+		// text := b.WriteString("0 results\n")
+		text := "0 results\n"
+		line := theme.text.Render(text)
+		b.WriteString(line)
+	} else {
+		endIndex := min(m.offset+10, len(m.filteredApps))
+
+		for i := m.offset; i < endIndex; i++ {
+			appName := m.filteredApps[i].Name
+			
+			var line string
+
+			if m.cursor == i {
+				indicator := "> "
+				line = theme.indicator.Render(indicator)
+				text := fmt.Sprintf("%s", appName)
+				line = line + theme.selectedStyle.Render(text)
+			} else {
+				text := fmt.Sprintf("  %s", appName)
+				line = theme.text.Render(text)
+			}
+			
+			b.WriteString(line + "\n")
+		}
+
+		remaining := len(m.filteredApps) - endIndex
 		if remaining > 0 {
-			b.WriteString(fmt.Sprintf("\n ... and other %d apps\n", remaining))
+			var line string
+			text := fmt.Sprintf("\n ... and other %d options", remaining)
+			line = theme.text.Render(text)
+			b.WriteString(line)
 		}
 	}
-	return boxStyle.Render(b.String())
+
+	 return theme.boxStyle.Render(b.String())
 }
 func main() {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	
-	// Esegui il programma e cattura il modello finale
 	finalModel, err := p.Run()
 	if err != nil {
 		fmt.Printf("Errore UI: %v", err)
 		os.Exit(1)
 	}
 
-	// Controlla se abbiamo selezionato qualcosa
 	if m, ok := finalModel.(model); ok && m.selectedApp != nil {
-		// Ora siamo fuori da Bubble Tea, il terminale è ripristinato.
-		// Possiamo lanciare l'app in sicurezza.
 		launchApp(m.selectedApp)
 	}
 }
@@ -218,9 +230,6 @@ func main() {
 func launchApp(app *AppEntry) {
 	cmdStr := app.Exec
 
-    // Se l'app richiede un terminale, prepariamo il comando wrapper.
-    // Qui dovresti rilevare il terminale dell'utente, hardcodiamo "kitty" per esempio,
-    // oppure puoi usare "x-terminal-emulator" -e.
 	if app.Terminal {
         // Nota: la sintassi flag dipende dal terminale (-e per kitty/alacritty/xterm, -- per gnome-terminal)
 		cmdStr = fmt.Sprintf("%s -e %s",  TERMINAL,cmdStr)
@@ -246,6 +255,4 @@ func launchApp(app *AppEntry) {
 		fmt.Printf("Errore release: %v\n", err)
 	}
 	
-    // Stampa di debug, puoi rimuoverla
-	// fmt.Printf("Lanciato: %s\n", cmdStr) 
 }
