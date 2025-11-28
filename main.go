@@ -17,7 +17,7 @@ import (
 
 var TERMINAL string = "alacritty"
 var BROWSER string = "firefox"
-var THEME string = "default"
+var THEME string = ""
 var theme Theme
 
 type model struct {
@@ -35,7 +35,12 @@ type model struct {
 func initialModel() model {
 	loadConfig()
 	
-	theme = loadTheme("rose-pine")
+	palette, err := loadThemeConfig(THEME)
+	if err != nil {
+		fmt.Printf("error reading theme config: %v", err)
+	}
+
+	theme = BuildTheme(palette)
 	
 	ti := textinput.New()
 	ti.Placeholder = "Search..."
@@ -43,9 +48,9 @@ func initialModel() model {
 	ti.CharLimit = 156
 	ti.Width = 50
 
-	ti.TextStyle = theme.inputStyle.textColor
-	ti.PlaceholderStyle = theme.inputStyle.placeholderColor
-	ti.PromptStyle = theme.inputStyle.promptColor
+	ti.TextStyle = theme.Input.Text
+	ti.PlaceholderStyle = theme.Input.Placeholder
+	ti.PromptStyle = theme.Input.Prompt
 	
 	args := os.Args[1:]
 
@@ -179,7 +184,8 @@ func (m model) View() string {
 		
 		// text := b.WriteString("0 results\n")
 		text := "0 results\n"
-		line := theme.text.Render(text)
+		line := theme.Text.Render(text)
+		// line := theme.text.Render(text)
 		b.WriteString(line)
 	} else {
 		endIndex := min(m.offset+10, len(m.filteredApps))
@@ -191,12 +197,15 @@ func (m model) View() string {
 
 			if m.cursor == i {
 				indicator := "> "
-				line = theme.indicator.Render(indicator)
+				// line = theme.indicator.Render(indicator)
+				line = theme.Indicator.Render(indicator)
 				text := fmt.Sprintf("%s", appName)
-				line = line + theme.selectedStyle.Render(text)
+				// line = line + theme.selectedStyle.Render(text)
+				line = line + theme.Selected.Render(text)
 			} else {
 				text := fmt.Sprintf("  %s", appName)
-				line = theme.text.Render(text)
+				// line = theme.text.Render(text)
+				line = theme.Text.Render(text)
 			}
 			
 			b.WriteString(line + "\n")
@@ -206,12 +215,12 @@ func (m model) View() string {
 		if remaining > 0 {
 			var line string
 			text := fmt.Sprintf("\n ... and other %d options", remaining)
-			line = theme.text.Render(text)
+			line = theme.Text.Render(text)
 			b.WriteString(line)
 		}
 	}
 
-	 return theme.boxStyle.Render(b.String())
+	 return theme.Box.Render(b.String())
 }
 func main() {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())

@@ -3,101 +3,156 @@ package main
 import (
 	"bufio"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-type SelectedStyle struct{
-	backgroundColor string
-	textColor       string
-	indicator       string
-}
-type TextStyle struct{
-	textColor string
-}
-type InputStyle struct{
-	textColor        lipgloss.Style
-	placeholderColor lipgloss.Style
-	promptColor      lipgloss.Style
-}
-type Theme struct{
-	boxStyle      lipgloss.Style
-	text          lipgloss.Style 
-	selectedStyle lipgloss.Style
-	inputStyle    InputStyle
-	indicator     lipgloss.Style
+// Palette struct
+type Palette struct {
+	BackgroundColor  string
+	TextColor        string
+	SelectedBg       string
+	SelectedText     string
+	Indicator        string
+	InputText        string
+	InputPlaceholder string
+	InputPrompt      string
 }
 
-
-
-var selectedStyle = SelectedStyle{}
-var text = TextStyle{}
-var input = InputStyle{}
-
-func getDefault(){
-	
-	selectedStyle.backgroundColor = "#ffffff"
-	selectedStyle.textColor = "#000000"
-	text.textColor = "#ffffff"
-	input.textColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
-	input.placeholderColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#808080"))
-	input.promptColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
-	selectedStyle.indicator = "#ffffff"
-}
-
-func loadTheme(themeName string) Theme{
-
-	switch themeName{
-		case "default":
-			// selectedStyle.backgroundColor = "#ffffff"
-			// selectedStyle.textColor = "#000000"
-			// text.textColor = "#ffffff"
-			// input.textColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
-			// input.placeholderColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#808080"))
-			// input.promptColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
-			// selectedStyle.indicator = "#ffffff"
-			getDefault()
-
-		case "rose-pine":
-			selectedStyle.backgroundColor = "#403d52"
-			selectedStyle.textColor = "#e0def4"
-			// text.textColor = "#e0def4"
-			text.textColor = "#908caa"
-			input.textColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#e0def4"))
-			input.placeholderColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#808080"))
-			input.promptColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#c4a7e7"))
-			selectedStyle.indicator = "#c4a7e7"
-			
+// DefaultPalette
+func DefaultPalette() Palette {
+	return Palette{
+		BackgroundColor:  "#ffffff",
+		TextColor:        "#ffffff",
+		SelectedBg:       "#ffffff",
+		SelectedText:     "#000000",
+		Indicator:        "#ffffff",
+		InputText:        "#ffffff",
+		InputPlaceholder: "#808080",
+		InputPrompt:      "#ffffff",
 	}
+}
+func RosePinePalette() Palette {
+	return Palette{
+		BackgroundColor:       "#403d52", // Surface
+		TextColor:             "#908caa", // Subtle
+		SelectedBg:       "#26233a", // Overlay
+		SelectedText:     "#e0def4", // Text
+		Indicator:        "#c4a7e7", // Iris
+		InputText:        "#e0def4", // Text
+		InputPlaceholder: "#6e6a86", // Muted
+		InputPrompt:      "#c4a7e7", // Iris
+	}
+}
 
-	
+//structs for lipgloss
+type InputStyle struct {
+	Text        lipgloss.Style
+	Placeholder lipgloss.Style
+	Prompt      lipgloss.Style
+}
+
+//returned obj
+type Theme struct {
+	Box       lipgloss.Style
+	Text      lipgloss.Style
+	Selected  lipgloss.Style
+	Indicator lipgloss.Style
+	Input     InputStyle
+}
+
+// Palette -> Theme
+func BuildTheme(p Palette) Theme {
 	return Theme{
-		boxStyle: lipgloss.NewStyle().
+		Box: lipgloss.NewStyle().
 			Padding(1, 2).
 			Margin(1, 0),
-		text: lipgloss.NewStyle().
-			Foreground(lipgloss.Color(text.textColor)),
-		selectedStyle: lipgloss.NewStyle().
-			Background(lipgloss.Color(selectedStyle.backgroundColor)).
-			Foreground(lipgloss.Color(selectedStyle.textColor)).
+		Text: lipgloss.NewStyle().
+			Foreground(lipgloss.Color(p.TextColor)),
+		Selected: lipgloss.NewStyle().
+			Background(lipgloss.Color(p.SelectedBg)).
+			Foreground(lipgloss.Color(p.SelectedText)).
 			Bold(true),
-		inputStyle: input,
-		indicator: lipgloss.NewStyle().Foreground(lipgloss.Color(selectedStyle.indicator)),
+		Indicator: lipgloss.NewStyle().
+			Foreground(lipgloss.Color(p.Indicator)),
+		Input: InputStyle{
+			Text:        lipgloss.NewStyle().Foreground(lipgloss.Color(p.InputText)),
+			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color(p.InputPlaceholder)),
+			Prompt:      lipgloss.NewStyle().Foreground(lipgloss.Color(p.InputPrompt)),
+		},
 	}
 }
 
-func loadThemeFromFile(){
-	file, err := os.Open("/home/mukumba/.config/go-launcher/theme.conf")
-	if err != nil {
-        return
-    }
 
+func loadThemeConfig(name string) (Palette, error) {
+	// init
+	p := DefaultPalette()
+
+	switch name{
+		case "":
+			break
+		case "rose-pine":
+			return RosePinePalette(),nil
+		case "default":
+			return p,nil
+	}
+
+	// base user path
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return p, err // default if no file
+	}
+
+	//path build
+	path := filepath.Join(configDir, "go-launcher", "theme.conf")
+
+	file, err := os.Open(path)
+	if err != nil {
+		// default if no file
+		return p, nil
+	}
 	defer file.Close()
 
+	// parse
 	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
 
-	for scanner.Scan(){
-		
+		// ignore empty string or comment
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		switch key {
+		case "background":
+			p.BackgroundColor = value
+		case "text_color":
+			p.TextColor = value
+		case "selected_bg":
+			p.SelectedBg = value
+		case "selected_text":
+			p.SelectedText = value
+		case "indicator":
+			p.Indicator = value
+		case "input_text":
+			p.InputText = value
+		case "input_placeholder":
+			p.InputPlaceholder = value
+		case "input_prompt":
+			p.InputPrompt = value
+		}
 	}
-    
+
+	return p, scanner.Err()
 }
+

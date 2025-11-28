@@ -21,11 +21,16 @@ func loadConfig(){
 	for scanner.Scan(){
 
 		line := scanner.Text()
+
+		if !strings.HasPrefix(line,"#"){
 			
-		if strings.HasPrefix(line, "Terminal=") {
-			TERMINAL = line[9:]
-		} else if strings.HasPrefix(line, "Browser="){
-			BROWSER = line[8:]
+			if strings.HasPrefix(line, "Terminal=") {
+				TERMINAL = line[9:]
+			} else if strings.HasPrefix(line, "Browser="){
+				BROWSER = line[8:]
+			} else if strings.HasPrefix(line, "Theme="){
+				THEME = line[6:]
+			}
 		}
 	}
 }
