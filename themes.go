@@ -11,7 +11,6 @@ import (
 
 // Palette struct
 type Palette struct {
-	BackgroundColor  string
 	TextColor        string
 	SelectedBg       string
 	SelectedText     string
@@ -24,7 +23,6 @@ type Palette struct {
 // DefaultPalette
 func DefaultPalette() Palette {
 	return Palette{
-		BackgroundColor:  "#ffffff",
 		TextColor:        "#ffffff",
 		SelectedBg:       "#ffffff",
 		SelectedText:     "#000000",
@@ -36,8 +34,7 @@ func DefaultPalette() Palette {
 }
 func RosePinePalette() Palette {
 	return Palette{
-		BackgroundColor:       "#403d52", // Surface
-		TextColor:             "#908caa", // Subtle
+		TextColor:        "#908caa", // Subtle
 		SelectedBg:       "#26233a", // Overlay
 		SelectedText:     "#e0def4", // Text
 		Indicator:        "#c4a7e7", // Iris
@@ -134,8 +131,6 @@ func loadThemeConfig(name string) (Palette, error) {
 		value := strings.TrimSpace(parts[1])
 
 		switch key {
-		case "background":
-			p.BackgroundColor = value
 		case "text_color":
 			p.TextColor = value
 		case "selected_bg":
