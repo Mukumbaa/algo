@@ -11,7 +11,9 @@ var pathConfig = "/home/mukumba/.config/go-launcher/go-launcher.conf"
 func loadConfig(){
 	
 	file, err := os.Open(pathConfig)
-	check(err)
+    if err != nil {
+		return
+	}
 	
 	defer file.Close()
 

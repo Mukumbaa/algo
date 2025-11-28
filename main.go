@@ -9,10 +9,19 @@ import (
 	"net/url" 
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
 	
 )
 
+var (
+	// Stile per il contenitore principale (box)
+	boxStyle = lipgloss.NewStyle().
+		// BorderStyle(lipgloss.RoundedBorder()). // Bordo arrotondato
+		// BorderForeground(lipgloss.Color("63")). // Colore viola (ANSI 63)
+		Padding(1, 2).                          // Padding interno (top/bottom, left/right)
+		Margin(1, 0)
+)
 
 var TERMINAL string = "alacritty"
 var BROWSER string = "firefox"
@@ -159,30 +168,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// func (m model) View() string {
-// 	var b strings.Builder
-// 	b.WriteString(m.textInput.View())
-// 	b.WriteString("\n\n")
-
-// 	if len(m.filteredApps) == 0 {
-// 		b.WriteString("0 results\n")
-// 	} else {
-// 		maxDisplay := min(len(m.filteredApps), 10)
-
-// 		for i := range maxDisplay {
-// 			cursor := " "
-// 			if m.cursor == i {
-// 				cursor = ">"
-// 			}
-// 			b.WriteString(fmt.Sprintf("%s %s\n", cursor, m.filteredApps[i].Name))
-// 		}
-		
-// 		if len(m.filteredApps) > maxDisplay {
-// 			b.WriteString(fmt.Sprintf("\n ... and other %d apps\n", len(m.filteredApps)-maxDisplay))
-// 		}
-// 	}
-// 	return b.String()
-// }
 
 func (m model) View() string {
 	var b strings.Builder
@@ -193,10 +178,7 @@ func (m model) View() string {
 		b.WriteString("0 results\n")
 	} else {
         // Calcola l'indice finale basato sull'offset
-		endIndex := m.offset + 10
-		if endIndex > len(m.filteredApps) {
-			endIndex = len(m.filteredApps)
-		}
+		endIndex := min(m.offset + 10, len(m.filteredApps))
 
         // Cicla da offset fino a endIndex
 		for i := m.offset; i < endIndex; i++ {
@@ -213,7 +195,7 @@ func (m model) View() string {
 			b.WriteString(fmt.Sprintf("\n ... and other %d apps\n", remaining))
 		}
 	}
-	return b.String()
+	return boxStyle.Render(b.String())
 }
 func main() {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
