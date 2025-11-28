@@ -16,7 +16,7 @@ func loadConfig(){
 	}
 
 	//path build
-	path := filepath.Join(configDir, "go-launcher", "go-launcher.conf")
+	path := filepath.Join(configDir, "algo", "algo.conf")
 
 	file, err := os.Open(path)
 	if err != nil {

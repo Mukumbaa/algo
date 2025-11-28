@@ -103,7 +103,7 @@ func loadThemeConfig(name string) (Palette, error) {
 	}
 
 	//path build
-	path := filepath.Join(configDir, "go-launcher", "theme.conf")
+	path := filepath.Join(configDir, "algo", "theme.conf")
 
 	file, err := os.Open(path)
 	if err != nil {
