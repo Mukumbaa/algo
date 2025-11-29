@@ -11,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	// "github.com/charmbracelet/lipgloss"
 )
 
@@ -41,7 +42,7 @@ func initialModel() model {
 	}
 
 	theme = BuildTheme(palette)
-	
+		
 	ti := textinput.New()
 	ti.Placeholder = "Search..."
 	ti.Focus()
@@ -220,7 +221,26 @@ func (m model) View() string {
 		}
 	}
 
-	 return theme.Box.Render(b.String())
+    const fixedWidth = 30
+    const fixedHeight = 16 
+
+    style := theme.Box.
+        Width(fixedWidth).
+        Height(fixedHeight).
+        UnsetMargins() 
+
+    content := style.Render(b.String())
+
+    if m.width == 0 {
+        return content
+    }
+
+    return lipgloss.Place(
+        m.width, m.height,
+        lipgloss.Center, lipgloss.Center,
+        content,
+    )
+    // return theme.Box.Render(b.String())
 }
 func main() {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
