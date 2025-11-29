@@ -3,7 +3,7 @@
 windowrulev2 = float, class:^(algo)$
 windowrulev2 = pin, class:^(algo)$
 windowrulev2 = center, class:^(algo)$
-windowrulev2 = size 400 360, class:^(algo)$
+windowrulev2 = size 300 360, class:^(algo)$
 ```
 
 # algo.conf (Example)
