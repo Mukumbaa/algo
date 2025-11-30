@@ -22,14 +22,27 @@ type Palette struct {
 
 // DefaultPalette
 func DefaultPalette() Palette {
-	return Palette{
-		TextColor:        "#ffffff",
-		SelectedBg:       "#ffffff",
-		SelectedText:     "#000000",
-		Indicator:        "#ffffff",
-		InputText:        "#ffffff",
-		InputPlaceholder: "#808080",
-		InputPrompt:      "#ffffff",
+	if lipgloss.HasDarkBackground() {
+		
+		return Palette{
+			TextColor:        "#ffffff",
+			SelectedBg:       "#ffffff",
+			SelectedText:     "#000000",
+			Indicator:        "#ffffff",
+			InputText:        "#ffffff",
+			InputPlaceholder: "#808080",
+			InputPrompt:      "#ffffff",
+		}
+	}else{
+		return Palette{
+			TextColor:        "#000000",
+			SelectedBg:       "#000000",
+			SelectedText:     "#ffffff",
+			Indicator:        "#000000",
+			InputText:        "#000000",
+			InputPlaceholder: "#808080",
+			InputPrompt:      "#000000",
+		}
 	}
 }
 func RosePinePalette() Palette {
