@@ -178,6 +178,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	var b strings.Builder
+    b.WriteString(fmt.Sprintf("\033]11;%s\007", theme.Background)) // OSC sequence
 	b.WriteString(m.textInput.View())
 	b.WriteString("\n\n")
 
@@ -220,7 +221,6 @@ func (m model) View() string {
 			b.WriteString(line)
 		}
 	}
-
     const fixedWidth = 30
     const fixedHeight = 16 
 
@@ -248,6 +248,8 @@ func (m model) View() string {
 func main() {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	
+	defer fmt.Print("\033]111\007")	
+	
 	finalModel, err := p.Run()
 	if err != nil {
 		fmt.Printf("Errore UI: %v", err)
@@ -255,8 +257,10 @@ func main() {
 	}
 
 	if m, ok := finalModel.(model); ok && m.selectedApp != nil {
+		fmt.Print("\033]111\007")
 		launchApp(m.selectedApp)
 	}
+	
 }
 
 func launchApp(app *AppEntry) {

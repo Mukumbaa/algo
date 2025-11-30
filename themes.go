@@ -11,6 +11,7 @@ import (
 
 // Palette struct
 type Palette struct {
+	Background       string
 	TextColor        string
 	SelectedBg       string
 	SelectedText     string
@@ -25,6 +26,7 @@ func DefaultPalette() Palette {
 	if lipgloss.HasDarkBackground() {
 		
 		return Palette{
+			Background:       "#000000",
 			TextColor:        "#ffffff",
 			SelectedBg:       "#ffffff",
 			SelectedText:     "#000000",
@@ -35,6 +37,7 @@ func DefaultPalette() Palette {
 		}
 	}else{
 		return Palette{
+			Background:       "#ffffff",
 			TextColor:        "#000000",
 			SelectedBg:       "#000000",
 			SelectedText:     "#ffffff",
@@ -47,6 +50,7 @@ func DefaultPalette() Palette {
 }
 func RosePinePalette() Palette {
 	return Palette{
+		Background:       "#191724",
 		TextColor:        "#908caa", // Subtle
 		SelectedBg:       "#26233a", // Overlay
 		SelectedText:     "#e0def4", // Text
@@ -66,11 +70,12 @@ type InputStyle struct {
 
 //returned obj
 type Theme struct {
-	Box       lipgloss.Style
-	Text      lipgloss.Style
-	Selected  lipgloss.Style
-	Indicator lipgloss.Style
-	Input     InputStyle
+	Box        lipgloss.Style
+	Text       lipgloss.Style
+	Selected   lipgloss.Style
+	Indicator  lipgloss.Style
+	Input      InputStyle
+	Background string
 }
 
 // Palette -> Theme
@@ -92,6 +97,7 @@ func BuildTheme(p Palette) Theme {
 			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color(p.InputPlaceholder)),
 			Prompt:      lipgloss.NewStyle().Foreground(lipgloss.Color(p.InputPrompt)),
 		},
+		Background: p.Background,
 	}
 }
 
@@ -144,6 +150,8 @@ func loadThemeConfig(name string) (Palette, error) {
 		value := strings.TrimSpace(parts[1])
 
 		switch key {
+		case "background":
+			p.Background = value
 		case "text_color":
 			p.TextColor = value
 		case "selected_bg":
