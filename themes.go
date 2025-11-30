@@ -24,28 +24,33 @@ type Palette struct {
 // DefaultPalette
 func DefaultPalette() Palette {
 	if lipgloss.HasDarkBackground() {
-		
-		return Palette{
-			Background:       "#100d08",
-			TextColor:        "#ffffff",
-			SelectedBg:       "#ffffff",
-			SelectedText:     "#000000",
-			Indicator:        "#ffffff",
-			InputText:        "#ffffff",
-			InputPlaceholder: "#808080",
-			InputPrompt:      "#ffffff",
-		}
+		return DefaultDarkPalette()
 	}else{
-		return Palette{
-			Background:       "#ffffff",
-			TextColor:        "#000000",
-			SelectedBg:       "#000000",
-			SelectedText:     "#ffffff",
-			Indicator:        "#000000",
-			InputText:        "#000000",
-			InputPlaceholder: "#808080",
-			InputPrompt:      "#000000",
-		}
+		return DefaultLightPalette()
+	}
+}
+func DefaultDarkPalette() Palette{
+	return Palette{
+		Background:       "#100d08",
+		TextColor:        "#ffffff",
+		SelectedBg:       "#ffffff",
+		SelectedText:     "#000000",
+		Indicator:        "#ffffff",
+		InputText:        "#ffffff",
+		InputPlaceholder: "#808080",
+		InputPrompt:      "#ffffff",
+	}
+}
+func DefaultLightPalette() Palette{
+	return Palette{
+		Background:       "#ffffff",
+		TextColor:        "#000000",
+		SelectedBg:       "#000000",
+		SelectedText:     "#ffffff",
+		Indicator:        "#000000",
+		InputText:        "#000000",
+		InputPlaceholder: "#808080",
+		InputPrompt:      "#000000",
 	}
 }
 func RosePinePalette() Palette {
@@ -103,8 +108,6 @@ func BuildTheme(p Palette) Theme {
 
 
 func loadThemeConfig(name string) (Palette, error) {
-	// init
-	p := DefaultPalette()
 
 	switch name{
 		case "":
@@ -112,8 +115,15 @@ func loadThemeConfig(name string) (Palette, error) {
 		case "rose-pine":
 			return RosePinePalette(),nil
 		case "default":
-			return p,nil
+			return DefaultPalette(),nil
+		case "default-dark":
+			return DefaultDarkPalette(),nil
+		case "default-light":
+			return DefaultLightPalette(),nil
 	}
+	
+	// init
+	p := DefaultPalette()
 
 	// base user path
 	configDir, err := os.UserConfigDir()
