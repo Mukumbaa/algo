@@ -176,10 +176,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 
-var fixedWidth = 30
+var fixedWidth = 30 
 var fixedHeight = 16 
 
 func (m model) View() string {
+	// PROVA
+
+
+	
 	var b strings.Builder
     b.WriteString(fmt.Sprintf("\033]11;%s\007", theme.Background)) // OSC sequence
 
