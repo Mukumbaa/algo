@@ -205,8 +205,8 @@ func (m model) View() string {
 		endIndex := min(m.offset+10, len(m.filteredApps))
 
 		for i := m.offset; i < endIndex; i++ {
-			appName := m.filteredApps[i].Name
-			
+			// appName := m.filteredApps[i].Name
+			appName := truncate(m.filteredApps[i].Name, 24)
 			var line string
 
 			if m.cursor == i {
@@ -301,4 +301,11 @@ func launchApp(app *AppEntry) {
 		fmt.Printf("Errore release: %v\n", err)
 	}
 	
+}
+
+func truncate(s string, max int) string {
+    if len(s) <= max {
+        return s
+    }
+    return s[:max-1] + "…"
 }
