@@ -18,7 +18,6 @@ type AppEntry struct {
 func loadApplications() []AppEntry {
 	paths := []string{
 		filepath.Join(os.Getenv("HOME"), ".local/share/applications"),
-		"/usr/local/share/applications",
 		"/usr/share/applications",
 	}
 	
@@ -77,78 +76,86 @@ func parseDesktopFile(path string) (AppEntry, bool) {
 		return AppEntry{}, false
 	}
 	defer f.Close()
-	
+
 	var (
-		inDesktopEntry bool
+		inDesktopEntry bool = false // Default to false
 		name           string
 		exec           string
-		noDisplay      bool
-		hidden         bool
+		// noDisplay      bool
+		// hidden         bool
 		isApp          bool
 		terminal       bool
 		onlyShowIn     string
 		notShowIn      string
 	)
-	
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		line := scanner.Text()
-		
+		// FIX 1: Trim whitespace to avoid "NoDisplay=true " failures
+		line := strings.TrimSpace(scanner.Text())
+
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		
+
+		// FIX 2: Handle section headers without breaking
 		if line[0] == '[' {
-			inDesktopEntry = line == "[Desktop Entry]"
+			if line == "[Desktop Entry]" {
+				inDesktopEntry = true
+			} else {
+				// If we hit "[Desktop Action NewWindow]", we are no longer in the main entry
+				// BUT we don't stop parsing, in case NoDisplay was put at the bottom manually
+				inDesktopEntry = false 
+			}
 			continue
 		}
-		
-		if !inDesktopEntry {
+
+		// Parse Key=Value pairs
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
 			continue
 		}
-		
-		if noDisplay || hidden {
-			break
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// FIX 3: Check NoDisplay globally or strictly within Entry.
+		// Browsers often act weird, so if NoDisplay is true anywhere, hide it.
+		if key == "NoDisplay" && value == "true" {
+			return AppEntry{}, false
 		}
-		
-		if strings.HasPrefix(line, "Type=") {
-			isApp = line[5:] == "Application"
-			if !isApp {
-				return AppEntry{}, false
+		if key == "Hidden" && value == "true" {
+			return AppEntry{}, false
+		}
+
+		// Only read Name/Exec/Type from the [Desktop Entry] section
+		if inDesktopEntry {
+			switch key {
+			case "Type":
+				isApp = value == "Application"
+			case "OnlyShowIn":
+				onlyShowIn = value
+			case "NotShowIn":
+				notShowIn = value
+			case "Terminal":
+				terminal = value == "true"
+			case "Name":
+				if name == "" { name = value }
+			case "Exec":
+				if exec == "" { exec = value }
 			}
-		} else if strings.HasPrefix(line, "NoDisplay=") {
-			noDisplay = line[10:] == "true"
-			if noDisplay {
-				return AppEntry{}, false
-			}
-		} else if strings.HasPrefix(line, "Hidden=") {
-			hidden = line[7:] == "true"
-			if hidden {
-				return AppEntry{}, false
-			}
-		} else if strings.HasPrefix(line, "OnlyShowIn=") {
-			onlyShowIn = line[11:]
-		} else if strings.HasPrefix(line, "NotShowIn=") {
-			notShowIn = line[10:]
-		} else if strings.HasPrefix(line, "Terminal=") {
-			terminal = line[9:] == "true"
-		} else if name == "" && strings.HasPrefix(line, "Name=") {
-			name = line[5:]
-		} else if exec == "" && strings.HasPrefix(line, "Exec=") {
-			exec = line[5:]
 		}
 	}
-	
+
 	if !isApp || name == "" || exec == "" {
 		return AppEntry{}, false
 	}
-	
+
 	if !isCompatibleWithHyprland(onlyShowIn, notShowIn) {
 		return AppEntry{}, false
 	}
-	
+
 	exec = removeExecPlaceholders(exec)
-	
+
 	return AppEntry{
 		Name:     name,
 		Exec:     exec,
@@ -156,6 +163,91 @@ func parseDesktopFile(path string) (AppEntry, bool) {
 		Terminal: terminal,
 	}, true
 }
+// func parseDesktopFile(path string) (AppEntry, bool) {
+// 	f, err := os.Open(path)
+// 	if err != nil {
+// 		return AppEntry{}, false
+// 	}
+// 	defer f.Close()
+	
+// 	var (
+// 		inDesktopEntry bool
+// 		name           string
+// 		exec           string
+// 		noDisplay      bool
+// 		hidden         bool
+// 		isApp          bool
+// 		terminal       bool
+// 		onlyShowIn     string
+// 		notShowIn      string
+// 	)
+	
+// 	scanner := bufio.NewScanner(f)
+// 	for scanner.Scan() {
+// 		line := scanner.Text()
+		
+// 		if len(line) == 0 || line[0] == '#' {
+// 			continue
+// 		}
+		
+// 		if line[0] == '[' {
+// 			inDesktopEntry = line == "[Desktop Entry]"
+// 			continue
+// 		}
+		
+// 		if !inDesktopEntry {
+// 			continue
+// 		}
+		
+// 		if noDisplay || hidden {
+// 			break
+// 		}
+		
+// 		if strings.HasPrefix(line, "Type=") {
+// 			isApp = line[5:] == "Application"
+// 			if !isApp {
+// 				return AppEntry{}, false
+// 			}
+// 		} else if strings.HasPrefix(line, "NoDisplay=") {
+// 			noDisplay = line[10:] == "true"
+// 			if noDisplay {
+// 				return AppEntry{}, false
+// 			}
+// 		} else if strings.HasPrefix(line, "Hidden=") {
+// 			hidden = line[7:] == "true"
+// 			if hidden {
+// 				return AppEntry{}, false
+// 			}
+// 		} else if strings.HasPrefix(line, "OnlyShowIn=") {
+// 			onlyShowIn = line[11:]
+// 		} else if strings.HasPrefix(line, "NotShowIn=") {
+// 			notShowIn = line[10:]
+// 		} else if strings.HasPrefix(line, "Terminal=") {
+// 			terminal = line[9:] == "true"
+// 		} else if name == "" && strings.HasPrefix(line, "Name=") {
+// 			name = line[5:]
+// 		} else if exec == "" && strings.HasPrefix(line, "Exec=") {
+// 			exec = line[5:]
+// 		}
+// 	}
+	
+// 	if !isApp || name == "" || exec == "" {
+// 		return AppEntry{}, false
+// 	}
+	
+// 	if !isCompatibleWithHyprland(onlyShowIn, notShowIn) {
+// 		return AppEntry{}, false
+// 	}
+	
+// 	exec = removeExecPlaceholders(exec)
+	
+// 	return AppEntry{
+// 		Name:     name,
+// 		Exec:     exec,
+// 		File:     path,
+// 		Terminal: terminal,
+// 	}, true
+// }
 
 func isCompatibleWithHyprland(onlyShowIn, notShowIn string) bool {
 	if notShowIn != "" {
